@@ -1,0 +1,12 @@
+# Let Git detect and normalize text files.
+* text=auto
+
+# Shell-related executable / test files must use LF.
+*.sh text eol=lf
+*.bash text eol=lf
+*.bats text eol=lf
+
+# Configuration files used from Linux / CI should also use LF.
+*.yml text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf
