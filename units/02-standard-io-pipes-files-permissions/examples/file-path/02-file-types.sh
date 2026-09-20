@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-# regular file / directory / symbolic link / hidden file / executable file を作成し、
-# test command と ls で種類や状態を確認する。
+# regular file / directory / symbolic link / hidden file / executable file の違いを確認する。
 
 work_dir=$(mktemp -d)
 
@@ -11,17 +10,20 @@ symbolic_link="$work_dir/regular-link"
 hidden_file="$work_dir/.hidden"
 executable_file="$work_dir/run.sh"
 
+# 種類の異なる file / directory を学習用に用意する。
 printf '%s\n' 'regular file' >"$regular_file"
 mkdir "$directory"
 ln -s "$regular_file" "$symbolic_link"
 printf '%s\n' 'hidden file' >"$hidden_file"
 
+# execute permission を持つ Script file を用意する。
 cat >"$executable_file" <<'SCRIPT'
 #!/usr/bin/env bash
 printf '%s\n' 'executable file'
 SCRIPT
 chmod +x "$executable_file"
 
+# test command の file 判定で、それぞれの種類や状態を確認する。
 [[ -f "$regular_file" ]] && printf 'regular file: %s\n' "$regular_file"
 [[ -d "$directory" ]] && printf 'directory: %s\n' "$directory"
 [[ -L "$symbolic_link" ]] && printf 'symbolic link: %s\n' "$symbolic_link"
