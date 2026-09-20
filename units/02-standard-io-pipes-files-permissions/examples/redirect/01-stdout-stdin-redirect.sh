@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 
-# `>` は stdout を file へ書き出し、既存内容がある場合は上書きする。
-# `>>` は stdout を file の末尾へ追記する。
-# `<` は file を command の stdin として接続する。
+# stdout / stdin の基本的な redirect を、同じ file を使って比較する。
 
 work_dir=$(mktemp -d)
 output_file="$work_dir/output.txt"
 
+# > は stdout を file へ向ける。既存内容がある場合は上書きする。
 printf '%s\n' 'first line' >"$output_file"
+
+# >> は stdout を同じ file の末尾へ追記する。
 printf '%s\n' 'second line' >>"$output_file"
 
+# < は file の内容を command の stdin として接続する。
 cat <"$output_file"
 
 rm -f -- "$output_file"

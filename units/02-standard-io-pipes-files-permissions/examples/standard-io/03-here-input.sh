@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 
-# here document と here string は、command の stdin へデータを渡す方法の一つ。
-# この Unit では redirect の応用として軽く確認し、複雑な利用方法には踏み込まない。
+# here document / here string も、command の stdin へ data を渡す方法である。
+# この Unit では redirect の応用として基本的な形だけ確認する。
 
+# here document は delimiter までの複数行を stdin として cat へ渡す。
 cat <<'TEXT'
 first line from here document
 second line from here document
 TEXT
 
+# here string は一つの文字列を stdin として command へ渡す。
 read -r value <<<'value from here string'
 printf '%s\n' "$value"

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
-# tee は stdin を受け取り、その内容を stdout へ流しながら file にも書き込む。
-# redirect だけで file へ送る場合と違い、Terminal への表示を残しながら保存できる。
+# tee は stdin を stdout へ流しながら、同じ内容を file にも書き込める。
 
 output_file=$(mktemp)
 
+# redirect で stdout を file だけへ向ける場合と異なり、Terminal への表示を残しながら保存する。
 printf '%s\n' 'line through tee' | tee "$output_file"
 
-# 保存された内容も通常の file として確認できる。
+# tee が file に保存した内容も確認する。
 cat "$output_file"
 
 rm -f -- "$output_file"
