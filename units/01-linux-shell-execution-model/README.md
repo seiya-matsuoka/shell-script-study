@@ -445,7 +445,7 @@ debugging 機能としての詳細や注意点は Unit 04 で扱うため、こ�
 
 ## 学習・実践
 
-### Process の実行モデルを確認する
+### 1. Process の実行モデルを確認する
 
 まず、同じ program から複数の process が実行される様子を確認する。
 
@@ -485,7 +485,7 @@ bash examples/process/04-process-thread-view.sh
 `ps -T` では、指定した process に属する thread を表示できる。  
 今回の Bash が一つの thread で動作している場合、PID と SPID が同じ値として表示される。ここでは複数 thread を作るのではなく、Linux が process と thread を別の識別情報で扱えることを確認する。
 
-### Shell による command の解決と実行を確認する
+### 2. Shell による command の解決と実行を確認する
 
 Shell builtin と external command の違いから確認する。
 
@@ -523,7 +523,7 @@ bash -x examples/command-execution/03-foreground-background.sh
 `jobs -l` では現在の Shell が管理している job を確認し、最後に `wait` で background process の終了を待つ。  
 `wait` の exit status が `0` になっていることも確認する。
 
-### Exit Status を確認する
+### 3. Exit Status を確認する
 
 command が終了時に返す exit status を確認する。
 
@@ -543,7 +543,7 @@ bash -x examples/exit-status/02-last-command-status.sh
 `false` の直後では non-zero の値を取得できるが、その後に `printf` が正常終了すると、次の `$?` は `printf` の結果である `0` になる。  
 確認したい command の exit status は、その command の直後に取得する必要があることを実行結果から理解する。
 
-### Signal と process 終了を確認する
+### 4. Signal と process 終了を確認する
 
 signal は、学習用の `01-signal-target.sh` だけを対象として確認する。  
 用途が分からない system process や他の process へ `kill` を実行しない。
@@ -598,7 +598,7 @@ Script には `SIGKILL` 用の `trap` がないのではなく、`SIGKILL` 自�
 
 この実践を通して、`kill` は「常に強制終了する command」ではなく、指定した signal を process へ送る command であることを確認する。
 
-### Variable・Environment・実行 Context を確認する
+### 5. Variable・Environment・実行 Context を確認する
 
 まず、Shell variable と child process の environment の違いを確認する。
 
@@ -693,7 +693,7 @@ unset UNIT01_SOURCE_VALUE
 通常実行では別の Bash process で variable が設定されるため parent Shell に残らず、`source` では現在の Shell 自身で file の内容が実行されるため値が残る。  
 これは単に「environment variable が child から parent へ戻るか」という話ではなく、そもそも `source` では別 child process を作って同じ方法で実行しているわけではないという違いである。
 
-### Docker Container とのつながりを整理する
+### 6. Docker Container とのつながりを整理する
 
 ここまでの実践で確認した process と signal の考え方は、Docker Container の動作にもつながる。  
 この Unit では Docker command を実行せず、以下の関係だけ整理する。
