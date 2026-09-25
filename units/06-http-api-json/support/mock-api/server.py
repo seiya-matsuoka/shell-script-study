@@ -6,6 +6,8 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
+# Unit 06 の Shell samples から共通で利用する local mock API の設定。
+# authentication / retry / readiness の挙動も、この server 内の dummy state で再現する。
 HOST = "127.0.0.1"
 PORT = 18080
 DEMO_TOKEN = "unit06-demo-token"
@@ -14,9 +16,11 @@ ready_count = 0
 
 
 class Handler(BaseHTTPRequestHandler):
+    # 学習中は Shell 側の出力を確認しやすくするため、通常の access log は抑制する。
     def log_message(self, format, *args):
         return
 
+    # 各 endpoint から JSON response を返すための共通処理。
     def send_json(self, status, data):
         body = json.dumps(data).encode()
         self.send_response(status)
@@ -29,6 +33,7 @@ class Handler(BaseHTTPRequestHandler):
         global unstable_count, ready_count
         path = urlparse(self.path).path
 
+        # GET / header / JSON array の基本サンプルで利用する endpoint。
         if path == "/api/user":
             return self.send_json(200, {"id": 1, "name": "alice", "active": True})
         if path == "/api/header":
@@ -44,6 +49,8 @@ class Handler(BaseHTTPRequestHandler):
                     ]
                 },
             )
+
+        # health check / readiness / timeout / retry を再現する endpoint。
         if path == "/api/health":
             return self.send_json(200, {"status": "UP", "version": "1.0.0"})
         if path == "/api/ready":
@@ -60,6 +67,8 @@ class Handler(BaseHTTPRequestHandler):
                     503, {"status": "temporary_error", "attempt": unstable_count}
                 )
             return self.send_json(200, {"status": "ok", "attempt": unstable_count})
+
+        # authentication と HTTP error のサンプルで利用する endpoint。
         if path == "/api/protected":
             auth = self.headers.get("Authorization", "")
             if auth != f"Bearer {DEMO_TOKEN}":
@@ -67,8 +76,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(200, {"message": "authenticated"})
         if path == "/api/status/404":
             return self.send_json(404, {"error": "not_found"})
+
         return self.send_json(404, {"error": "unknown_endpoint"})
 
+    # POST sample では JSON request body を受け取り、受信内容を JSON response として返す。
     def do_POST(self):
         if urlparse(self.path).path != "/api/messages":
             return self.send_json(404, {"error": "unknown_endpoint"})
@@ -76,14 +87,17 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(
                 415, {"error": "content_type_must_be_application_json"}
             )
+
         try:
             length = int(self.headers.get("Content-Length", "0"))
             data = json.loads(self.rfile.read(length).decode())
         except json.JSONDecodeError:
             return self.send_json(400, {"error": "invalid_json"})
+
         return self.send_json(201, {"received": data})
 
 
+# 127.0.0.1 のみで mock API server を起動し、Ctrl+C で終了できるようにする。
 if __name__ == "__main__":
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     print(f"Unit 06 mock API: http://{HOST}:{PORT}", flush=True)
