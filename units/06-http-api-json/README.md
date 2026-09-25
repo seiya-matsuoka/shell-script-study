@@ -6,14 +6,14 @@ Shell Script を外部サービスと連携させる代表的な例として、H
 `curl` で API を呼び出し、HTTP status code や `curl` の exit status を確認し、`jq` で JSON response から必要な値を取得して、その結果に応じて別の処理へつなげる基本を学習する。  
 Unit 04 で扱った timeout / retry / secret、Unit 05 で扱った command の組み合わせと data flow を、HTTP / API という実用的な対象へ接続する。
 
-この Unit の重み付けは「標準」である。  
 HTTP protocol 自体の詳細、OAuth 等の認証方式の詳細、高度な `jq` programming には深入りせず、Shell Script から API を扱うために必要な範囲へ絞る。
 
 ## 学習内容
 
-### HTTP / API の最低限
+### HTTP request / response の基本
 
-HTTP では client が server へ request を送り、server が response を返す。
+HTTP では client が server へ request を送り、server がその request を処理して response を返す。  
+Shell Script から API を利用する場合も、この request / response の往復を `curl` などの command から行っている。
 
 ```text
 Shell Script
@@ -23,31 +23,17 @@ API server
 Shell Script
 ```
 
-この Unit では request / response について以下を扱う。
+request には、主に「どの resource に対して」「どのような処理を求めるか」と、その処理に必要な追加情報を含める。  
+この Unit では、method、URL、header、body を最低限の構成要素として扱う。
 
-```text
-request
-- method
-- URL
-- header
-- body
-
-response
-- HTTP status code
-- response body
-```
-
-#### GET
-
-GET は resource や状態の取得で利用される代表的な method である。
+GET は resource や状態を取得するときに利用される代表的な method である。
 
 ```bash
 curl http://127.0.0.1:18080/api/user
 ```
 
-#### POST
-
-POST では request body を伴って server へ data を送る場合がある。
+POST は server へ data を送り、新しい処理や登録などを依頼するときに利用されることがある。  
+JSON API では、request body に JSON を入れ、`Content-Type` header で body の形式を伝える形がよく見られる。
 
 ```bash
 curl \
@@ -57,27 +43,21 @@ curl \
   http://127.0.0.1:18080/api/messages
 ```
 
-#### Request header
-
-header には request の metadata を付けられる。
+header は request に付加する metadata であり、body の data format や authentication 情報などを伝えるために使われる。
 
 ```bash
 -H 'Content-Type: application/json'
 -H 'Authorization: Bearer ...'
 ```
 
-#### Request body
+body は request で server へ渡す data 本体である。  
+Shell から JSON body を作る場合、quote や escape を手作業の文字列連結で処理するより、`jq` のように JSON を理解する tool に任せる方が安全で読みやすい。
 
-JSON API では request body を JSON として送ることが多い。  
-Shell で JSON string を手作業で連結するのではなく、JSON-aware な tool で組み立てる方が安全で読みやすい。
+server から返る response には、処理結果を表す HTTP status code と response body がある。  
+JSON API では body が JSON になっていることが多く、Shell variable や temporary file へ受け取って `jq` で必要な値を取り出せる。
 
-#### Response
-
-API response body が JSON の場合、Shell variable や temporary file へ受け取って `jq` へ渡せる。
-
-#### HTTP status code
-
-この Unit では status code を大きく以下のように捉える。
+HTTP status code は、request に対して HTTP level でどのような結果になったかを示す。  
+この Unit では細かな code を暗記するのではなく、大きく以下の区分を理解する。
 
 ```text
 2xx
@@ -90,11 +70,11 @@ API response body が JSON の場合、Shell variable や temporary file へ受�
 → server 側の failure
 ```
 
-細かな status code の意味を暗記することは目的としない。
+### `curl` による HTTP request
 
-### `curl`
+`curl` は HTTP request を command line から実行する代表的な tool であり、Shell Script から API を利用するときにも頻繁に使われる。  
+URL を渡すだけの単純な GET から、method、header、body、timeout、response の保存方法などを option で組み合わせられる。
 
-`curl` は HTTP request を command line から実行する代表的な tool である。  
 この Unit では主に以下を利用する。
 
 ```text
@@ -108,11 +88,13 @@ API response body が JSON の場合、Shell variable や temporary file へ受�
 --max-time
 ```
 
-option を単独で暗記するのではなく、request / response / failure handling のどの目的で使っているかを確認する。
+たとえば `-H` は request header、`--data` は request body、`-o` は response body の保存先、`-w` は HTTP status code などの response metadata を取得するために利用する。  
+option を一覧として暗記するのではなく、request を組み立てるための option と、response / failure を扱うための option という役割を意識して読む。
 
-### Connection failure と HTTP error
+### HTTP / API の failure handling
 
-API call の failure には複数の層がある。
+API call の failure は一種類ではない。  
+Shell Script では、「HTTP request を送るところまで到達できなかった failure」と、「server から HTTP response を受け取ったが、その response が error を示している状態」を区別する必要がある。
 
 ```text
 connection failure
@@ -124,31 +106,21 @@ HTTP error
 → HTTP 4xx / 5xx response を受け取った
 ```
 
-`curl` の exit status と HTTP status code は同じ情報ではない。  
-既定の `curl` では HTTP 404 でも通信自体が成立していれば exit status `0` になり得る。  
-HTTP 4xx / 5xx を `curl` failure として扱いたい場合は `-f` を利用できる。
+この違いがあるため、`curl` の exit status と HTTP status code は同じ情報ではない。  
+既定の `curl` では、HTTP 404 を受け取っても通信そのものが成立していれば exit status `0` になり得る。  
+HTTP 4xx / 5xx を `curl` の failure として扱いたい場合は `-f` を利用できる。
 
-### Timeout
-
-外部 API が応答しない場合、Script が長時間停止しないよう timeout を設定する。
+外部 API では、接続できないだけでなく「接続はできたが response が返ってこない」という状態も考える。  
+そのため timeout を設定し、Script が無制限に待ち続けないようにする。
 
 ```bash
 curl --connect-timeout 2 --max-time 5 ...
 ```
 
-概念として以下を区別する。
+`--connect-timeout` は connection establishment に許す時間、`--max-time` は request 全体に許す最大時間を制限する。  
+どちらも「外部処理を永遠に待たない」という Unit 04 の考え方を HTTP request へ適用したものである。
 
-```text
-connect timeout
-→ connection establishment に許す時間
-
-max time
-→ request 全体に許す最大時間
-```
-
-### Retry
-
-一時的な failure では retry が有効な場合がある。
+一時的な failure では retry が有効な場合もあるが、すべての error を同じように retry するわけではない。
 
 ```text
 HTTP 503
@@ -160,57 +132,63 @@ HTTP 401
 → 同じ request を繰り返しても改善しない可能性
 ```
 
-retry は無制限にせず、最大回数と待機時間を決める。  
-Unit 04 で扱った retry を HTTP failure の種類と組み合わせる。
+retry する場合も最大回数と待機時間を決め、failure の意味に応じて継続・再試行・終了を判断する。
 
 ### Authentication token
 
-API token は Script source に直接記載せず、environment variable など外部から受け取る。
+API によっては request に authentication token を付ける。  
+token は credential の一種なので、実際の値を Script source に直接記載せず、environment variable や利用環境の secret 管理機能など外部から受け取る。
 
 ```bash
 : "${API_TOKEN:?API_TOKEN is required}"
 ```
 
-request header へ渡す例は以下である。
+Bearer token を request header に渡す場合は、次のような形になる。
 
 ```bash
 -H "Authorization: Bearer $API_TOKEN"
 ```
 
-ただし `set -x` / `bash -x` は展開後 argument を stderr へ出すため、token を含む command を trace すると secret が log へ出る可能性がある。  
-source code への hard-code を避けることと、log への露出を避けることは別の問題として考える。
+token を source code から外しただけで secret handling が完了するわけではない。  
+`set -x` / `bash -x` は展開後の command argument を stderr へ出すため、token を含む `curl` command を trace すると secret が log へ露出する可能性がある。
+
+そのため、secret を扱う command では xtrace を無効にする、token 自体を `printf` などで出力しない、といった扱いも合わせて考える。
 
 ### JSON と `jq`
 
-JSON response は `grep` / `sed` などの文字列操作ではなく、JSON parser である `jq` を利用する。
+JSON は text として表現される data format だが、property、array、string の escape など JSON 固有の構造を持つ。  
+そのため JSON response を `grep` / `sed` などの単純な文字列操作だけで解析するのではなく、JSON を理解する parser として `jq` を利用する。
 
-#### Property 取得
+object の property は次のように取得できる。
 
 ```bash
 jq -r '.name'
 ```
 
-`-r` は JSON string を raw text として出力する。
+`-r` を付けると、JSON string の `"alice"` ではなく Shell で扱いやすい `alice` という raw text を出力できる。
 
-#### Array
-
-```bash
-jq '.items[]'
-```
-
-array element を 1 件ずつ展開できる。
-
-#### Filter
+array の各 element を扱う場合は `.items[]` のように展開し、`select(...)` を組み合わせることで条件に合う object だけを選択できる。
 
 ```bash
-jq '.items[] | select(.active == true)'
+jq -r '.items[] | select(.active == true) | .name'
 ```
 
-条件に合う object だけを選択できる。
+この expression は、
 
-#### Shell variable との連携
+```text
+.items[]
+→ array element を 1 件ずつ取り出す
 
-Shell variable を jq expression へ直接文字列連結するのではなく、`--arg` で jq variable として渡す。
+select(.active == true)
+→ active な object だけ残す
+
+.name
+→ 必要な property だけ取得する
+```
+
+という data flow として読む。
+
+Shell variable を jq の条件へ渡す場合、jq program の文字列へ直接値を埋め込むのではなく `--arg` を利用する。
 
 ```bash
 jq \
@@ -218,13 +196,14 @@ jq \
   '.items[] | select(.name == $target)'
 ```
 
-Shell と jq という異なる parser の境界を明確にする。
+これにより、Shell 側の variable を data として jq へ渡し、jq program 自体と分離できる。  
+逆方向では、`jq -r` の output を command substitution で Shell variable へ受け取り、その値を `if` などの condition に利用できる。
 
-### Application の状態確認
+### Application の health / readiness
 
-#### Health check
+HTTP API は data の取得だけでなく、application の状態確認にも利用できる。
 
-health endpoint を使う場合、単に HTTP 200 だけを見るのではなく response body の application-level status も確認する場合がある。
+health check では、HTTP request が成功したことだけでなく、response body に含まれる application-level status も確認する場合がある。
 
 ```text
 HTTP status = 200
@@ -234,9 +213,10 @@ JSON .status = "UP"
 healthy
 ```
 
-#### 起動完了判定
+つまり「server と HTTP 通信できたこと」と「application が期待する状態であること」を別の情報として確認している。
 
-application process が起動していても、まだ request を受け付ける準備ができていない場合がある。
+また、application process が起動していても、その直後から request を受け付けられるとは限らない。  
+initialization や dependency connection の完了を待つ間、readiness endpoint が `STARTING` のような状態を返し、準備が整った後に `READY` へ変わる構成もある。
 
 ```text
 process started
@@ -248,7 +228,8 @@ STARTING
 READY
 ```
 
-readiness endpoint を一定回数 polling し、READY になったら後続処理へ進む pattern を扱う。
+Shell Script では readiness endpoint を一定間隔で polling し、response JSON から状態を取得して、READY になったら後続処理へ進むことができる。  
+この場合も無限に待ち続けず、request timeout、最大試行回数、待機時間を組み合わせる。
 
 ### この Unit で対象外とする内容
 
