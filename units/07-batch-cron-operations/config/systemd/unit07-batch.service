@@ -1,0 +1,10 @@
+# Unit 07 learning example.
+# 実際に配置する場合は __UNIT07_DIR__ を absolute path に置き換える。
+
+[Unit]
+Description=Unit 07 sample batch job
+
+[Service]
+Type=oneshot
+WorkingDirectory=__UNIT07_DIR__
+ExecStart=/usr/bin/bash __UNIT07_DIR__/examples/systemd/01-batch-job.sh
