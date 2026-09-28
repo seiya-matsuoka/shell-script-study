@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# 実際の curl の完全な再現ではなく、Unit 09 のテストで必要な最小 fake。
+# PATH の先頭へこの directory を追加し、external command を deterministic に置き換える。
+if [[ -n ${FAKE_CURL_MARKER:-} ]]; then
+  printf '%s\n' 'called' >>"$FAKE_CURL_MARKER"
+fi
+
+case "${FAKE_CURL_MODE:-success}" in
+success)
+  printf '%s\n' "${FAKE_CURL_RESPONSE:-READY}"
+  exit 0
+  ;;
+failure)
+  printf '%s\n' 'fake curl: request failed' >&2
+  exit 22
+  ;;
+*)
+  printf 'fake curl: unknown mode: %s\n' "$FAKE_CURL_MODE" >&2
+  exit 2
+  ;;
+esac
