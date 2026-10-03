@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-unit10}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-unit10-password}
+      POSTGRES_DB: ${POSTGRES_DB:-unit10db}
+    ports:
+      - "${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - ./sql:/sql:ro
+      - ./data:/data:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-unit10} -d ${POSTGRES_DB:-unit10db}",
+        ]
+      interval: 2s
+      timeout: 2s
+      retries: 10
