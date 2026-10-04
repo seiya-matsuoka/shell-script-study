@@ -2,13 +2,11 @@
 
 # local と CI で同じ shfmt rule を利用し、未整形の差分があれば non-zero で終了する。
 script_dir=$(
-  cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
-  pwd
-)
+  cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd
+) || exit 1
 unit_dir=$(
-  cd -- "$script_dir/.."
-  pwd
-)
+  cd -- "$script_dir/.." && pwd
+) || exit 1
 
 if ! command -v shfmt >/dev/null; then
   printf '%s\n' 'shfmt is required' >&2

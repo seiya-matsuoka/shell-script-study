@@ -5,9 +5,8 @@
 set -e
 
 script_dir=$(
-  cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
-  pwd
-)
+  cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd
+) || exit 1
 
 bash "$script_dir/01-format-check.sh"
 bash "$script_dir/02-shellcheck.sh"

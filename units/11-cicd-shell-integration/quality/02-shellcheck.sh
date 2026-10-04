@@ -2,13 +2,11 @@
 
 # ShellCheck の warning を CI failure へつなげるため、通常の Shell files を一つの入口から解析する。
 script_dir=$(
-  cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
-  pwd
-)
+  cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd
+) || exit 1
 unit_dir=$(
-  cd -- "$script_dir/.."
-  pwd
-)
+  cd -- "$script_dir/.." && pwd
+) || exit 1
 
 if ! command -v shellcheck >/dev/null; then
   printf '%s\n' 'shellcheck is required' >&2

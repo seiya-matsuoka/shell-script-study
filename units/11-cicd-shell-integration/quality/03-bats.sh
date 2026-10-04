@@ -2,13 +2,11 @@
 
 # Bats test の failure status をそのまま呼び出し元へ返し、CI step の結果へ接続する。
 script_dir=$(
-  cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
-  pwd
-)
+  cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd
+) || exit 1
 unit_dir=$(
-  cd -- "$script_dir/.."
-  pwd
-)
+  cd -- "$script_dir/.." && pwd
+) || exit 1
 
 if ! command -v bats >/dev/null; then
   printf '%s\n' 'bats is required' >&2
