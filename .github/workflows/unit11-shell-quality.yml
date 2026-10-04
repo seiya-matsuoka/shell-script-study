@@ -1,0 +1,80 @@
+name: Unit 11 Shell Quality
+
+on:
+  push:
+    paths:
+      - 'units/11-cicd-shell-integration/**'
+      - '.github/workflows/unit11-shell-quality.yml'
+  pull_request:
+    paths:
+      - 'units/11-cicd-shell-integration/**'
+      - '.github/workflows/unit11-shell-quality.yml'
+  workflow_dispatch:
+    inputs:
+      run_failure_demo:
+        description: 'Run an intentional failing step to observe workflow failure'
+        required: false
+        default: false
+        type: boolean
+
+# 学習用 workflow は repository content の読み取りだけでよいため、permission を最小限にする。
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      # runner は毎回 clean な環境で開始するため、最初に repository content を checkout する。
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # local と CI で同じ CLI を使えるよう、runner に shfmt / ShellCheck / Bats を用意する。
+      # installation 自体は学習対象ではなく、この後の quality steps を実行するための準備。
+      - name: Install shell quality tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shfmt shellcheck bats
+
+      # 各品質確認を別 step に分けることで、どの check が failure したか workflow 上でも判別しやすくする。
+      - name: Check formatting with shfmt
+        run: bash units/11-cicd-shell-integration/quality/01-format-check.sh
+
+      - name: Analyze with ShellCheck
+        run: bash units/11-cicd-shell-integration/quality/02-shellcheck.sh
+
+      - name: Run Bats tests
+        run: bash units/11-cicd-shell-integration/quality/03-bats.sh
+
+      # GitHub Actions 固有の environment variable を、secret を含めず安全な範囲で観察する。
+      - name: Show execution environment
+        run: bash units/11-cicd-shell-integration/examples/ci/02-environment.sh
+
+      # secret は step 単位の environment variable として渡す。
+      # 未設定なら空文字列になるため、sample Script 側で安全に skip する。
+      - name: Handle optional secret safely
+        env:
+          UNIT11_SAMPLE_TOKEN: ${{ secrets.UNIT11_SAMPLE_TOKEN }}
+        run: bash units/11-cicd-shell-integration/examples/ci/03-secret-usage.sh
+
+      # build step が生成した file を、次の artifact upload step へ受け渡す。
+      - name: Build sample artifact
+        run: bash units/11-cicd-shell-integration/scripts/build-artifact.sh
+
+      - name: Upload sample artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit11-ci-summary
+          path: units/11-cicd-shell-integration/dist/
+          if-no-files-found: error
+
+      # workflow_dispatch で明示的に選んだ場合だけ non-zero を返し、
+      # command failure → step failure → job / workflow failure の伝播を観察する。
+      - name: Optional intentional failure
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_failure_demo }}
+        run: bash units/11-cicd-shell-integration/examples/ci/01-command-result.sh failure
